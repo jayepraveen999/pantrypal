@@ -1,10 +1,10 @@
-# LastBite 🍽️
+# PantryPal 🥘
 
-**Save Food, Share Love**
+**Share Your Pantry, Build Community**
 
-LastBite is a mobile app that connects food givers with food seekers to reduce food waste in Munich. Swipe through available food items nearby, request what you need, and help build a more sustainable community.
+PantryPal is a mobile app that connects food givers with food seekers to reduce food waste and build stronger communities. Swipe through available food items nearby, request what you need, and help create a more sustainable future together.
 
-![LastBite App Icon](./assets/icon.png)
+![PantryPal App Icon](./assets/icon.png)
 
 ## 🌟 Features
 
@@ -23,11 +23,11 @@ LastBite is a mobile app that connects food givers with food seekers to reduce f
 
 ### Core Features
 - 🔐 **Anonymous Usernames** - Privacy-first with Reddit-style usernames
-- 📍 **Munich-Based** - Focused on the Munich area with district tagging
+- 📍 **Location-Based** - Find food items in your local area
 - 💬 **In-App Messaging** - Real-time chat for coordination
 - 🔔 **Notification Badges** - Stay updated on pending requests
 - ⚙️ **Settings** - Control notifications, location, and privacy
-- 🏆 **Achievements** - Coming soon - track your impact
+- 💰 **Freemium Model** - 7-day free trial, then 10% platform fee on paid items
 
 ## 🚀 Getting Started
 
@@ -42,8 +42,8 @@ LastBite is a mobile app that connects food givers with food seekers to reduce f
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/jayepraveen999/lastbite.git
-   cd lastbite
+   git clone https://github.com/jayepraveen999/pantrypal.git
+   cd pantrypal
    ```
 
 2. **Install dependencies**
@@ -81,7 +81,7 @@ LastBite is a mobile app that connects food givers with food seekers to reduce f
 ## 🗂️ Project Structure
 
 ```
-lastbite/
+pantrypal/
 ├── src/
 │   ├── components/          # Reusable UI components
 │   │   ├── FoodCard.js     # Swipeable food card
@@ -123,6 +123,9 @@ lastbite/
   email: string,
   username: string,        // Anonymous username
   realName: string,        // Private
+  trialStartDate: timestamp,
+  trialEndDate: timestamp,
+  subscriptionStatus: 'trial' | 'active' | 'expired',
   createdAt: timestamp
 }
 ```
@@ -134,6 +137,7 @@ lastbite/
   description: string,
   imageUrl: string,
   expiry: string,
+  price: number,           // 0 for free items
   status: 'available' | 'reserved' | 'completed',
   location: {
     lat: number,
@@ -209,9 +213,10 @@ service cloud.firestore {
 ## 🎨 Design Philosophy
 
 - **Privacy First**: Anonymous usernames protect user identity
-- **Local Focus**: Munich-based to build strong community connections
+- **Community Driven**: Connect neighbors to share food and reduce waste
 - **Trust Building**: Pre-approval chat enables coordination and trust
 - **Sustainable**: Reduce food waste while helping others
+- **Fair Pricing**: Freemium model with transparent platform fees
 
 ## 🛣️ Roadmap
 
@@ -228,9 +233,11 @@ service cloud.firestore {
 - [x] My Pickups tracking
 - [x] Notification badges
 - [x] Settings screen
-- [x] Achievements placeholder
+- [x] Freemium model with 7-day trial
+- [x] Platform fee system (10% on paid items)
 
 ### Phase 2B: Coming Soon
+- [ ] Payment integration (Stripe/PayPal)
 - [ ] Map view for food discovery
 - [ ] Advanced filtering
 - [ ] Push notifications
@@ -240,8 +247,9 @@ service cloud.firestore {
 ### Phase 3: Future
 - [ ] Social features
 - [ ] Community impact dashboard
-- [ ] Multi-city expansion
+- [ ] Multi-region expansion
 - [ ] Food waste analytics
+- [ ] Subscription tiers
 
 ## 🤝 Contributing
 
@@ -257,4 +265,4 @@ For support, email jayepraveen999@gmail.com or open an issue in the GitHub repos
 
 ---
 
-**LastBite** - *Rescue food, one bite at a time* 🍽️💚
+**PantryPal** - *Share your pantry, build your community* 🥘💚

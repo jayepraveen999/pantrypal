@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "LastBite",
-    "slug": "lastbite",
+    "name": "PantryPal",
+    "slug": "pantrypal",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,26 +10,26 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FF6B6B"
+      "backgroundColor": "#4CAF50"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lastbite.app",
+      "bundleIdentifier": "com.pantrypal.app",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "LastBite needs access to your photo library to let you share photos of your food items.",
-        "NSCameraUsageDescription": "LastBite needs access to your camera to let you take photos of your food items.",
-        "NSLocationWhenInUseUsageDescription": "LastBite needs your location to show you nearby food items and calculate distances."
+        "NSPhotoLibraryUsageDescription": "PantryPal needs access to your photo library to let you share photos of your food items.",
+        "NSCameraUsageDescription": "PantryPal needs access to your camera to let you take photos of your food items.",
+        "NSLocationWhenInUseUsageDescription": "PantryPal needs your location to show you nearby food items and calculate distances."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#FF6B6B"
+        "backgroundColor": "#4CAF50"
       },
-      "package": "com.lastbite.app",
+      "package": "com.pantrypal.app",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
