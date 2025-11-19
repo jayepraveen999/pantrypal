@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "LastBite",
+    "slug": "lastbite",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF6B6B"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lastbite.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "LastBite needs access to your photo library to let you share photos of your food items.",
+        "NSCameraUsageDescription": "LastBite needs access to your camera to let you take photos of your food items.",
+        "NSLocationWhenInUseUsageDescription": "LastBite needs your location to show you nearby food items and calculate distances."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#FF6B6B"
+      },
+      "package": "com.lastbite.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
