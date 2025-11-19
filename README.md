@@ -1,15 +1,14 @@
 # PantryPal 🥘
 
-**Share Your Pantry, Build Community**
-
-PantryPal is a mobile app that connects food givers with food seekers to reduce food waste and build stronger communities. Swipe through available food items nearby, request what you need, and help create a more sustainable future together.
+PantryPal connects neighbors to share surplus food and reduce waste through an intuitive mobile platform. 
+Discover available items nearby, coordinate pickups through in-app chat, and build a more sustainable community together.
 
 ![PantryPal App Icon](./assets/icon.png)
 
 ## 🌟 Features
 
 ### For Food Seekers
-- **Swipe to Discover** - Browse available food items in your area with Tinder-style swiping
+- **Swipe to Discover** - Browse available food items in your area with an intuitive card-based interface
 - **Request Food** - Send interest requests to food givers
 - **Real-Time Chat** - Discuss pickup details before approval
 - **Track Pickups** - View all your pending and approved food requests
