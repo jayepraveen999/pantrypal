@@ -39,8 +39,13 @@ const SettingsScreen = ({ navigation }) => {
                     text: 'Log Out',
                     style: 'destructive',
                     onPress: async () => {
-                        await auth.signOut();
-                        navigation.replace('Login');
+                        try {
+                            await auth.signOut();
+                            // Navigation handled automatically by AppNavigator's auth state listener
+                        } catch (error) {
+                            console.error('Logout error:', error);
+                            Alert.alert('Error', 'Failed to log out');
+                        }
                     }
                 }
             ]

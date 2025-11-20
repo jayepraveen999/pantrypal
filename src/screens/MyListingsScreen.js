@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
 import { auth, db } from '../config/firebaseConfig';
 import { COLORS, SPACING, FONT_SIZE, SHADOWS } from '../constants/theme';
-import { Trash2, CheckCircle, X, Check, MessageCircle } from 'lucide-react-native';
+import { Trash2, CheckCircle, X, Check, MessageCircle, Edit } from 'lucide-react-native';
 
 const MyListingsScreen = ({ navigation }) => {
     const [listings, setListings] = useState([]);
@@ -246,13 +246,22 @@ const MyListingsScreen = ({ navigation }) => {
 
                 <View style={styles.actions}>
                     {item.status === 'available' && (
-                        <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => handleDelete(item)}
-                        >
-                            <Trash2 size={18} color={COLORS.error} />
-                            <Text style={styles.deleteText}>Delete</Text>
-                        </TouchableOpacity>
+                        <>
+                            <TouchableOpacity
+                                style={styles.editButton}
+                                onPress={() => navigation.navigate('EditFood', { item })}
+                            >
+                                <Edit size={18} color={COLORS.primary} />
+                                <Text style={styles.editText}>Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.deleteButton}
+                                onPress={() => handleDelete(item)}
+                            >
+                                <Trash2 size={18} color={COLORS.error} />
+                                <Text style={styles.deleteText}>Delete</Text>
+                            </TouchableOpacity>
+                        </>
                     )}
 
                     {item.status === 'reserved' && (
@@ -502,6 +511,21 @@ const styles = StyleSheet.create({
     deleteText: {
         fontSize: FONT_SIZE.s,
         color: COLORS.error,
+        fontWeight: '600',
+    },
+    editButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: SPACING.s,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        gap: 4,
+        marginRight: SPACING.s,
+    },
+    editText: {
+        fontSize: FONT_SIZE.s,
+        color: COLORS.primary,
         fontWeight: '600',
     },
     confirmButton: {

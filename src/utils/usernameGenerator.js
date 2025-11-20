@@ -1,35 +1,38 @@
-// Anonymous Reddit-style username generator
-// Generates usernames like: HungryPanda42, FoodNinja88, MunichMuncher_123
+// Anonymous PantryPal-style username generator
+// Generates fun, food-themed usernames like "GenerousBanana42" or "HappyCarrot88"
 
 const adjectives = [
-    'Hungry', 'Happy', 'Friendly', 'Kind', 'Generous', 'Awesome',
-    'Cool', 'Swift', 'Brave', 'Clever', 'Wise', 'Jolly',
-    'Mighty', 'Noble', 'Quick', 'Silent', 'Sneaky', 'Witty'
+    'Happy', 'Generous', 'Kind', 'Friendly', 'Cheerful',
+    'Helpful', 'Caring', 'Sharing', 'Grateful', 'Joyful',
+    'Fresh', 'Tasty', 'Yummy', 'Sweet', 'Savory',
+    'Crispy', 'Juicy', 'Ripe', 'Golden', 'Bright'
 ];
 
 const nouns = [
-    'Panda', 'Ninja', 'Tiger', 'Dragon', 'Phoenix', 'Wolf',
-    'Eagle', 'Bear', 'Fox', 'Hawk', 'Lion', 'Owl',
-    'Muncher', 'Foodie', 'Saver', 'Hero', 'Helper', 'Sharer'
+    'Apple', 'Banana', 'Carrot', 'Tomato', 'Pepper',
+    'Lettuce', 'Cucumber', 'Broccoli', 'Potato', 'Onion',
+    'Bread', 'Cheese', 'Milk', 'Yogurt', 'Butter',
+    'Rice', 'Pasta', 'Bean', 'Corn', 'Pumpkin',
+    'Berry', 'Melon', 'Orange', 'Grape', 'Peach'
 ];
 
-const munichThemed = [
-    'MunichMuncher', 'BavarianBite', 'IsarEater', 'SchwabiingSnacker',
-    'MaxvorstadtMuncher', 'GlockenFoodie', 'MarienplatzMeal', 'EnglishGardenGrub'
+const pantryPalThemed = [
+    'PantryPal', 'ShareChef', 'KindCook', 'FoodSaver', 'GroceryHero',
+    'WasteBuster', 'MunichMuncher', 'BavarianBite', 'IsarEater'
 ];
 
 /**
  * Generate a random anonymous username
- * @param {boolean} includeMunichTheme - Whether to include Munich-themed usernames
- * @returns {string} Generated username (e.g., "HungryPanda42" or "MunichMuncher_123")
+ * @param {boolean} includeTheme - Whether to include PantryPal-themed usernames
+ * @returns {string} Generated username (e.g., "GenerousBanana42" or "PantryPal_123")
  */
-export const generateUsername = (includeMunichTheme = true) => {
+export const generateUsername = (includeTheme = true) => {
     const randomNumber = Math.floor(Math.random() * 1000);
 
-    // 30% chance to get a Munich-themed username
-    if (includeMunichTheme && Math.random() < 0.3) {
-        const munichName = munichThemed[Math.floor(Math.random() * munichThemed.length)];
-        return `${munichName}_${randomNumber}`;
+    // 30% chance to get a PantryPal-themed username
+    if (includeTheme && Math.random() < 0.3) {
+        const themeName = pantryPalThemed[Math.floor(Math.random() * pantryPalThemed.length)];
+        return `${themeName}_${randomNumber}`;
     }
 
     // Otherwise, generate adjective + noun combination
@@ -58,16 +61,16 @@ export const isUsernameAvailable = async (username, db) => {
 /**
  * Generate a unique username (checks Firestore for duplicates)
  * @param {Object} db - Firestore database instance
- * @param {boolean} includeMunichTheme - Whether to include Munich-themed usernames
+ * @param {boolean} includeTheme - Whether to include PantryPal-themed usernames
  * @returns {Promise<string>} Unique username
  */
-export const generateUniqueUsername = async (db, includeMunichTheme = true) => {
+export const generateUniqueUsername = async (db, includeTheme = true) => {
     let username;
     let attempts = 0;
     const maxAttempts = 10;
 
     do {
-        username = generateUsername(includeMunichTheme);
+        username = generateUsername(includeTheme);
         attempts++;
 
         if (attempts >= maxAttempts) {

@@ -18,6 +18,7 @@ import MyPickupsScreen from '../screens/MyPickupsScreen';
 import RequestChatScreen from '../screens/RequestChatScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
+import FoodDetailsScreen from '../screens/FoodDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -131,6 +132,16 @@ const AppNavigator = () => {
                             name="Achievements"
                             component={AchievementsScreen}
                             options={{ headerShown: true, title: 'Achievements' }}
+                        />
+                        <Stack.Screen
+                            name="FoodDetails"
+                            component={FoodDetailsScreen}
+                            options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                            name="EditFood"
+                            component={AddFoodScreen}
+                            options={{ headerShown: true, title: 'Edit Food' }}
                         />
                     </>
                 ) : (

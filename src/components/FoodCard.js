@@ -1,293 +1,162 @@
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity, Modal, ScrollView } from 'react-native';
+
+import React from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MapPin, Clock, X, Info } from 'lucide-react-native';
+import { MapPin, Clock, Thermometer, Package } from 'lucide-react-native';
 import { COLORS, SPACING, FONT_SIZE, SHADOWS } from '../constants/theme';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.9;
-const CARD_HEIGHT = CARD_WIDTH * 1.4;
-
-const FoodCard = ({ item }) => {
-    const [showDetails, setShowDetails] = useState(false);
-
+const FoodCard = ({ item, onPress, style }) => {
     return (
-        <>
-            <TouchableOpacity
-                style={styles.card}
-                activeOpacity={0.95}
-                onPress={() => setShowDetails(true)}
+        <TouchableOpacity
+            style={[styles.card, style]}
+            activeOpacity={0.9}
+            onPress={onPress}
+        >
+            <Image source={{ uri: item.image || item.imageUrl }} style={styles.image} resizeMode="cover" />
+
+            {/* Category Badge */}
+            {item.category && (
+                <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryText}>{item.category}</Text>
+                </View>
+            )}
+
+            <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.8)']}
+                style={styles.gradient}
             >
-                <Image key={item.id} source={{ uri: item.image }} style={styles.image} resizeMode="cover" />
-
-                <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.8)']}
-                    style={styles.gradient}
-                >
-                    <View style={styles.content}>
-                        <View style={styles.tagContainer}>
-                            {item.tags.map((tag, index) => (
-                                <View key={index} style={styles.tag}>
-                                    <Text style={styles.tagText}>{tag}</Text>
-                                </View>
-                            ))}
-                        </View>
-
-                        <Text style={styles.title}>{item.title}</Text>
-
-                        <View style={styles.row}>
-                            {item.distance && (
-                                <>
-                                    <View style={styles.infoItem}>
-                                        <Text style={styles.infoText}>{item.distance}</Text>
-                                    </View>
-                                    <View style={styles.separator}>
-                                        <Text style={styles.separatorText}>•</Text>
-                                    </View>
-                                </>
-                            )}
-                            <View style={styles.infoItem}>
-                                <Clock size={14} color={COLORS.white} />
-                                <Text style={styles.infoText}>{item.expiry}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.tapHint}>
-                            <Info size={12} color={COLORS.white} />
-                            <Text style={styles.tapHintText}>Tap for details</Text>
-                        </View>
+                <View style={styles.content}>
+                    <View style={styles.titleRow}>
+                        <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+                        {item.packageStatus && (
+                            <Text style={styles.packageEmoji}>
+                                {item.packageStatus === 'Sealed' ? '📦' : '🔓'}
+                            </Text>
+                        )}
                     </View>
-                </LinearGradient>
-            </TouchableOpacity>
 
-            {/* Details Modal */}
-            <Modal
-                visible={showDetails}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setShowDetails(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <TouchableOpacity
-                            style={styles.closeButton}
-                            onPress={() => setShowDetails(false)}
-                        >
-                            <X size={24} color={COLORS.text} />
-                        </TouchableOpacity>
-
-                        <ScrollView>
-                            <Image key={item.id} source={{ uri: item.image }} style={styles.modalImage} />
-                            <View style={styles.modalInfo}>
-                                <Text style={styles.modalTitle}>{item.title}</Text>
-
-                                <View style={styles.modalMetaRow}>
-                                    {item.distance && (
-                                        <View style={styles.modalMetaItem}>
-                                            <Text style={styles.modalMetaText}>{item.distance}</Text>
-                                        </View>
-                                    )}
-                                    {item.distance && (
-                                        <View style={styles.separator}>
-                                            <Text style={styles.separatorText}>•</Text>
-                                        </View>
-                                    )}
-                                    <View style={styles.modalMetaItem}>
-                                        <Clock size={18} color={COLORS.primary} />
-                                        <Text style={styles.modalMetaText}>{item.expiry}</Text>
-                                    </View>
-                                </View>
-
-                                <View style={styles.tagContainer}>
-                                    {item.tags.map((tag, i) => (
-                                        <View key={i} style={styles.modalTag}>
-                                            <Text style={styles.modalTagText}>{tag}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-
-                                <Text style={styles.modalSectionTitle}>Description</Text>
-                                <Text style={styles.modalDescription}>
-                                    {item.description || 'Delicious food ready to be rescued!'}
-                                </Text>
-
-                                <Text style={styles.modalHint}>
-                                    Close to continue swiping
+                    <View style={styles.priceRow}>
+                        {item.price !== undefined && (
+                            <View style={styles.priceContainer}>
+                                {typeof item.originalPrice === 'number' && (
+                                    <Text style={styles.originalPrice}>€{item.originalPrice.toFixed(2)}</Text>
+                                )}
+                                <Text style={styles.price}>
+                                    {item.price === 0 ? 'Free' : (typeof item.price === 'number' ? `€${item.price.toFixed(2)}` : '€0.00')}
                                 </Text>
                             </View>
-                        </ScrollView>
+                        )}
+                    </View>
+
+                    <View style={styles.footer}>
+                        {item.distance && (
+                            <Text style={styles.distance}>{item.distance}</Text>
+                        )}
+                        <View style={styles.expiryContainer}>
+                            <Clock size={12} color={COLORS.white} />
+                            <Text style={styles.expiry}>{item.expiry}</Text>
+                        </View>
                     </View>
                 </View>
-            </Modal>
-        </>
+            </LinearGradient>
+        </TouchableOpacity>
     );
 };
 
 const styles = StyleSheet.create({
     card: {
-        width: CARD_WIDTH,
-        height: CARD_HEIGHT,
-        borderRadius: 20,
+        borderRadius: 16,
         backgroundColor: COLORS.white,
         overflow: 'hidden',
-        ...SHADOWS.medium,
+        ...SHADOWS.small,
+        marginBottom: SPACING.m,
     },
     image: {
         width: '100%',
         height: '100%',
+    },
+    categoryBadge: {
+        position: 'absolute',
+        top: 8,
+        left: 8,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        zIndex: 10,
+    },
+    categoryText: {
+        color: COLORS.white,
+        fontSize: 10,
+        fontWeight: '600',
     },
     gradient: {
         position: 'absolute',
         left: 0,
         right: 0,
         bottom: 0,
-        height: '40%',
+        height: '60%',
         justifyContent: 'flex-end',
-        padding: SPACING.m,
+        padding: SPACING.s,
     },
     content: {
-        gap: SPACING.xs,
+        gap: 4,
     },
-    tagContainer: {
+    titleRow: {
         flexDirection: 'row',
-        gap: SPACING.xs,
-        marginBottom: SPACING.xs,
-    },
-    tag: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: SPACING.s,
-        paddingVertical: SPACING.xs,
-        borderRadius: 12,
-    },
-    tagText: {
-        color: COLORS.white,
-        fontSize: FONT_SIZE.xs,
-        fontWeight: '600',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 4,
     },
     title: {
+        flex: 1,
         color: COLORS.white,
-        fontSize: FONT_SIZE.xl,
+        fontSize: FONT_SIZE.m,
         fontWeight: 'bold',
     },
-    row: {
+    packageEmoji: {
+        fontSize: 16,
+    },
+    priceRow: {
         flexDirection: 'row',
-        gap: SPACING.m,
+        alignItems: 'flex-end',
     },
-    infoItem: {
+    priceContainer: {
         flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
+        alignItems: 'baseline',
+        gap: 6,
     },
-    infoText: {
-        color: COLORS.white,
-        fontSize: FONT_SIZE.s,
-        opacity: 0.9,
+    price: {
+        color: '#4ADE80', // Green
+        fontSize: FONT_SIZE.m,
+        fontWeight: 'bold',
     },
-    separator: {
-        marginHorizontal: 4,
-    },
-    separatorText: {
-        color: COLORS.white,
-        fontSize: FONT_SIZE.s,
-        opacity: 0.6,
-    },
-    tapHint: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        marginTop: SPACING.xs,
-        opacity: 0.7,
-    },
-    tapHintText: {
+    originalPrice: {
         color: COLORS.white,
         fontSize: FONT_SIZE.xs,
-        fontStyle: 'italic',
+        textDecorationLine: 'line-through',
+        opacity: 0.8,
     },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: COLORS.white,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        maxHeight: '90%',
-    },
-    closeButton: {
-        position: 'absolute',
-        top: SPACING.m,
-        right: SPACING.m,
-        zIndex: 10,
-        backgroundColor: COLORS.white,
-        borderRadius: 20,
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...SHADOWS.small,
-    },
-    modalImage: {
-        width: '100%',
-        height: 300,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-    },
-    modalInfo: {
-        padding: SPACING.l,
-    },
-    modalTitle: {
-        fontSize: FONT_SIZE.xxl,
-        fontWeight: 'bold',
-        color: COLORS.text,
-        marginBottom: SPACING.m,
-    },
-    modalMetaRow: {
+    footer: {
         flexDirection: 'row',
-        gap: SPACING.m,
-        marginBottom: SPACING.m,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 2,
     },
-    modalMetaItem: {
+    distance: {
+        color: COLORS.white,
+        fontSize: FONT_SIZE.xs,
+        opacity: 0.9,
+    },
+    expiryContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
     },
-    modalMetaText: {
-        fontSize: FONT_SIZE.m,
-        color: COLORS.text,
-        fontWeight: '500',
-    },
-    modalTag: {
-        backgroundColor: COLORS.primary + '20',
-        paddingHorizontal: SPACING.m,
-        paddingVertical: SPACING.s,
-        borderRadius: 16,
-        marginRight: SPACING.s,
-        marginBottom: SPACING.s,
-    },
-    modalTagText: {
-        fontSize: FONT_SIZE.s,
-        color: COLORS.primary,
-        fontWeight: '600',
-    },
-    modalSectionTitle: {
-        fontSize: FONT_SIZE.l,
-        fontWeight: 'bold',
-        color: COLORS.text,
-        marginTop: SPACING.m,
-        marginBottom: SPACING.s,
-    },
-    modalDescription: {
-        fontSize: FONT_SIZE.m,
-        color: COLORS.textLight,
-        lineHeight: 22,
-    },
-    modalHint: {
-        fontSize: FONT_SIZE.s,
-        color: COLORS.textLight,
-        textAlign: 'center',
-        marginTop: SPACING.l,
-        fontStyle: 'italic',
+    expiry: {
+        color: COLORS.white,
+        fontSize: FONT_SIZE.xs,
+        opacity: 0.9,
     },
 });
 

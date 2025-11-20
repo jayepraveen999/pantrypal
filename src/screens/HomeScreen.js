@@ -1,32 +1,44 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, Alert, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, FlatList, Dimensions, TextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Heart } from 'lucide-react-native';
-import SwipeDeck from '../components/SwipeDeck';
+import { Map as MapIcon, List, Search, X, MapPin, Grid } from 'lucide-react-native';
+import FoodCard from '../components/FoodCard';
+import FoodMap from '../components/FoodMap';
 import { COLORS, SPACING, FONT_SIZE, SHADOWS } from '../constants/theme';
-import { collection, query, where, getDocs, orderBy, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db, auth } from '../config/firebaseConfig';
 import { getCurrentLocation, filterByDistance, formatDistance } from '../utils/locationService';
 
+const { width } = Dimensions.get('window');
+const COLUMN_COUNT = 2;
+const CARD_MARGIN = SPACING.s;
+const CONTAINER_PADDING = SPACING.m;
+const CARD_WIDTH = (width - (CONTAINER_PADDING * 2) - (CARD_MARGIN * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
+
+const CATEGORIES = ['All', 'Produce', 'Dairy', 'Bakery', 'Pantry', 'Frozen', 'Beverages', 'Other'];
+
 const HomeScreen = ({ navigation }) => {
-    const [foodItems, setFoodItems] = useState([]);
+    const [allFoodItems, setAllFoodItems] = useState([]);
+    const [filteredFoodItems, setFilteredFoodItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userLocation, setUserLocation] = useState(null);
-    const swipeLeftTrigger = useRef(null);
-    const swipeRightTrigger = useRef(null);
+    const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'map'
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('All');
 
     useEffect(() => {
         loadFoodItems();
     }, []);
 
+    useEffect(() => {
+        filterItems();
+    }, [searchQuery, selectedCategory, allFoodItems]);
+
     const loadFoodItems = async () => {
         try {
-            // Get user's current location
             const location = await getCurrentLocation();
-            console.log('User location:', location);
             setUserLocation(location);
 
-            // Fetch available food items from Firestore
             const foodsRef = collection(db, 'foods');
             const q = query(
                 foodsRef,
@@ -35,39 +47,25 @@ const HomeScreen = ({ navigation }) => {
             );
 
             const snapshot = await getDocs(q);
-            const items = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            const items = snapshot.docs
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+                .filter(item => item.createdBy !== auth.currentUser?.uid); // Filter out own listings
 
-            console.log('Food Items Loaded:', items.length);
-            items.forEach(i => console.log(`- ${i.title} (${i.id})`));
-
-            console.log('Raw food items:', items.map(i => ({
-                title: i.title,
-                hasLocation: !!i.location,
-                location: i.location
-            })));
-
-            // Filter by distance (5km radius) and add distance info
-            const filteredItems = location
+            const itemsWithDistance = location
                 ? filterByDistance(items, location, 5)
                 : items;
 
-            console.log('Filtered items with distance:', filteredItems.map(i => ({
-                title: i.title,
-                distance: i.distance
-            })));
-
-            // Format for display
-            const formattedItems = filteredItems.map(item => ({
+            const formattedItems = itemsWithDistance.map(item => ({
                 ...item,
                 image: item.imageUrl,
                 distance: item.distance ? formatDistance(item.distance) : null,
                 tags: [item.location?.district || item.location?.city || 'Munich']
             }));
 
-            setFoodItems(formattedItems);
+            setAllFoodItems(formattedItems);
         } catch (error) {
             console.error('Error loading food items:', error);
         } finally {
@@ -75,56 +73,32 @@ const HomeScreen = ({ navigation }) => {
         }
     };
 
-    const handleSwipeLeft = (item) => {
-        console.log('Passed:', item.title);
+    const filterItems = () => {
+        let result = allFoodItems;
+
+        // Filter by Category
+        if (selectedCategory !== 'All') {
+            result = result.filter(item => item.category === selectedCategory);
+        }
+
+        // Filter by Search Query
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(item =>
+                item.title.toLowerCase().includes(query) ||
+                (item.description && item.description.toLowerCase().includes(query))
+            );
+        }
+
+        setFilteredFoodItems(result);
     };
 
-    const handleSwipeRight = async (item) => {
-        console.log('Liked:', item.title);
+    const handleCardPress = (item) => {
+        navigation.navigate('FoodDetails', { item });
+    };
 
-        try {
-            const currentUser = auth.currentUser;
-
-            // Don't allow users to request their own food
-            if (item.createdBy === currentUser.uid) {
-                Alert.alert('Oops!', 'You cannot request your own food item');
-                return;
-            }
-
-            // Create interest/request (not instant reservation)
-            const matchRef = await addDoc(collection(db, 'matches'), {
-                foodId: item.id,
-                foodTitle: item.title,
-                foodImage: item.imageUrl,
-                giverId: item.createdBy,
-                giverUsername: item.creatorName,
-                seekerId: currentUser.uid,
-                seekerUsername: currentUser.displayName || 'Anonymous',
-                status: 'interested', // New status: interested -> approved -> completed
-                giverApproved: false,
-                seekerConfirmed: false,
-                giverConfirmed: false,
-                createdAt: serverTimestamp()
-            });
-
-            // Remove from swipe deck
-            setFoodItems(prev => prev.filter(f => f.id !== item.id));
-
-            // Prompt user to send initial message
-            Alert.alert(
-                'Request Sent! 📬',
-                `Now send a message to ${item.creatorName} with:\n• When you can pick up\n• Any questions about the food`,
-                [
-                    {
-                        text: 'Send Message',
-                        onPress: () => navigation.navigate('RequestChat', { matchId: matchRef.id })
-                    }
-                ]
-            );
-        } catch (error) {
-            console.error('Request creation error:', error);
-            Alert.alert('Error', 'Failed to send request. Please try again.');
-        }
+    const handleMarkerPress = (item) => {
+        navigation.navigate('FoodDetails', { item });
     };
 
     if (loading) {
@@ -137,38 +111,101 @@ const HomeScreen = ({ navigation }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Header with Branding */}
+            {/* Header with Branding & Search */}
             <View style={styles.header}>
-                <Text style={styles.logo}>LastBite 🍽️</Text>
-                <Text style={styles.tagline}>Rescue food, one bite at a time</Text>
+                <View style={styles.headerTop}>
+                    <View>
+                        <Text style={styles.logo}>PantryPal 🛒</Text>
+                        <Text style={styles.tagline}>Share groceries, reduce waste</Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.toggleButton}
+                        onPress={() => setViewMode(viewMode === 'grid' ? 'map' : 'grid')}
+                    >
+                        {viewMode === 'grid' ? (
+                            <MapPin size={24} color={COLORS.primary} />
+                        ) : (
+                            <Grid size={24} color={COLORS.primary} />
+                        )}
+                    </TouchableOpacity>
+                </View>
+
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    <Search size={20} color={COLORS.textLight} style={styles.searchIcon} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search for milk, bread, etc..."
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholderTextColor={COLORS.textLight}
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')}>
+                            <X size={20} color={COLORS.textLight} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* Category Chips */}
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.categoryScroll}
+                    contentContainerStyle={styles.categoryContent}
+                >
+                    {CATEGORIES.map((cat) => (
+                        <TouchableOpacity
+                            key={cat}
+                            style={[
+                                styles.categoryChip,
+                                selectedCategory === cat && styles.categoryChipActive
+                            ]}
+                            onPress={() => setSelectedCategory(cat)}
+                        >
+                            <Text style={[
+                                styles.categoryText,
+                                selectedCategory === cat && styles.categoryTextActive
+                            ]}>
+                                {cat}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
             </View>
 
-            {/* Swipe Deck */}
-            <View style={styles.deckContainer}>
-                <SwipeDeck
-                    data={foodItems}
-                    onSwipeLeft={handleSwipeLeft}
-                    onSwipeRight={handleSwipeRight}
-                    onSwipeLeftPress={swipeLeftTrigger}
-                    onSwipeRightPress={swipeRightTrigger}
-                />
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.actionButtons}>
-                <TouchableOpacity
-                    style={[styles.actionButton, styles.passButton]}
-                    onPress={() => swipeLeftTrigger.current?.()}
-                >
-                    <X size={32} color={COLORS.error} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.actionButton, styles.likeButton]}
-                    onPress={() => swipeRightTrigger.current?.()}
-                >
-                    <Heart size={32} color={COLORS.white} />
-                </TouchableOpacity>
+            {/* Main Content */}
+            <View style={styles.contentContainer}>
+                {viewMode === 'grid' ? (
+                    <FlatList
+                        data={filteredFoodItems}
+                        keyExtractor={(item) => item.id}
+                        numColumns={COLUMN_COUNT}
+                        contentContainerStyle={styles.gridContainer}
+                        columnWrapperStyle={styles.columnWrapper}
+                        renderItem={({ item }) => (
+                            <FoodCard
+                                item={item}
+                                onPress={() => handleCardPress(item)}
+                                style={{ width: CARD_WIDTH, height: CARD_WIDTH * 1.4 }}
+                            />
+                        )}
+                        refreshing={loading}
+                        onRefresh={loadFoodItems}
+                        ListEmptyComponent={
+                            <View style={styles.emptyState}>
+                                <Text style={styles.emptyText}>No items found.</Text>
+                                <Text style={styles.emptySubtext}>Try adjusting your search or filters.</Text>
+                            </View>
+                        }
+                    />
+                ) : (
+                    <FoodMap
+                        foodItems={filteredFoodItems}
+                        userLocation={userLocation}
+                        onMarkerPress={handleMarkerPress}
+                    />
+                )}
             </View>
         </SafeAreaView>
     );
@@ -179,10 +216,26 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.background,
     },
+    mapContainer: {
+        flex: 1,
+    },
+    map: {
+        width: '100%',
+        height: '100%',
+    },
     header: {
-        alignItems: 'center',
         paddingTop: SPACING.m,
         paddingBottom: SPACING.s,
+        backgroundColor: COLORS.background,
+        zIndex: 10,
+        ...SHADOWS.small,
+    },
+    headerTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: SPACING.m,
+        marginBottom: SPACING.m,
     },
     logo: {
         fontSize: 28,
@@ -195,37 +248,94 @@ const styles = StyleSheet.create({
         marginTop: 4,
         fontStyle: 'italic',
     },
-    deckContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    actionButtons: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: SPACING.xl,
-        paddingVertical: SPACING.l,
-        paddingBottom: SPACING.xl,
-    },
-    actionButton: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
-        ...SHADOWS.medium,
-    },
-    passButton: {
+    toggleButton: {
+        padding: 8,
         backgroundColor: COLORS.white,
-        borderWidth: 2,
-        borderColor: COLORS.error,
+        borderRadius: 20,
+        ...SHADOWS.small,
     },
-    likeButton: {
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        marginHorizontal: SPACING.m,
+        paddingHorizontal: SPACING.m,
+        height: 44,
+        borderRadius: 12,
+        marginBottom: SPACING.m,
+        borderWidth: 1,
+        borderColor: '#eee',
+    },
+    searchIcon: {
+        marginRight: SPACING.s,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: FONT_SIZE.m,
+        color: COLORS.text,
+        height: '100%',
+    },
+    categoryScroll: {
+        maxHeight: 40,
+    },
+    categoryContent: {
+        paddingHorizontal: SPACING.m,
+        paddingRight: SPACING.l, // Extra padding at end
+    },
+    categoryChip: {
+        paddingHorizontal: SPACING.m,
+        paddingVertical: 6,
+        backgroundColor: COLORS.surface,
+        borderRadius: 20,
+        marginRight: SPACING.s,
+        borderWidth: 1,
+        borderColor: '#eee',
+        justifyContent: 'center',
+    },
+    categoryChipActive: {
         backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    categoryText: {
+        fontSize: FONT_SIZE.s,
+        color: COLORS.text,
+        fontWeight: '500',
+    },
+    categoryTextActive: {
+        color: COLORS.white,
+        fontWeight: '600',
+    },
+    contentContainer: {
+        flex: 1,
+    },
+    gridContainer: {
+        padding: CONTAINER_PADDING,
+        paddingBottom: 100,
+    },
+    columnWrapper: {
+        justifyContent: 'space-between',
     },
     loader: {
         flex: 1,
+    },
+    emptyState: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 100,
+        paddingHorizontal: SPACING.l,
+    },
+    emptyText: {
+        fontSize: FONT_SIZE.l,
+        fontWeight: 'bold',
+        color: COLORS.text,
+        textAlign: 'center',
+        marginBottom: SPACING.s,
+    },
+    emptySubtext: {
+        fontSize: FONT_SIZE.m,
+        color: COLORS.textLight,
+        textAlign: 'center',
     },
 });
 

@@ -49,6 +49,10 @@ const SignupScreen = ({ navigation }) => {
                 }
             });
 
+            // 5. Initialize 7-day free trial
+            const { initializeTrial } = require('../utils/subscriptionService');
+            await initializeTrial(user.uid);
+
             // Navigation is handled by AppNavigator listening to auth state
         } catch (error) {
             console.error(error);

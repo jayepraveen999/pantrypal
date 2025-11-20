@@ -1,55 +1,125 @@
 // Fixed duplicate imports
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Image, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { auth, db, storage } from '../config/firebaseConfig';
-import { Camera, MapPin } from 'lucide-react-native';
+import { Camera, MapPin, Thermometer, Package, CheckSquare, Square } from 'lucide-react-native';
 import { getCurrentLocation } from '../utils/locationService';
 
-const AddFoodScreen = ({ navigation }) => {
+const CATEGORIES = ['Produce', 'Dairy', 'Bakery', 'Pantry', 'Frozen', 'Beverages', 'Other'];
+const STORAGE_OPTIONS = ['Pantry', 'Refrigerated', 'Frozen'];
+const PACKAGE_OPTIONS = ['Sealed', 'Opened'];
+const EXPIRY_OPTIONS = [
+    { label: 'Today', hours: 12 },
+    { label: 'Tomorrow', hours: 24 },
+    { label: '2 Days', hours: 48 },
+    { label: '3 Days', hours: 72 },
+    { label: '1 Week', hours: 168 },
+];
+
+const AddFoodScreen = ({ navigation, route }) => {
+    const editItem = route.params?.item;
+    const isEditing = !!editItem;
+
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [expiry, setExpiry] = useState('');
+    const [selectedExpiry, setSelectedExpiry] = useState('Tomorrow');
+    const [price, setPrice] = useState('');
+    const [originalPrice, setOriginalPrice] = useState('');
+    const [category, setCategory] = useState('');
+    const [storageCondition, setStorageCondition] = useState('Pantry');
+    const [packageStatus, setPackageStatus] = useState('Sealed');
+    const [safetyPledge, setSafetyPledge] = useState(false);
     const [image, setImage] = useState(null);
     const [location, setLocation] = useState(null);
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    const pickImage = async () => {
+    useEffect(() => {
+        if (isEditing) {
+            setTitle(editItem.title);
+            setDescription(editItem.description);
+            setSelectedExpiry('Tomorrow'); // Default for editing
+            setPrice(editItem.price?.toString() || '');
+            setOriginalPrice(editItem.originalPrice?.toString() || '');
+            setCategory(editItem.category || '');
+            setStorageCondition(editItem.storageCondition || 'Pantry');
+            setPackageStatus(editItem.packageStatus || 'Sealed');
+            setSafetyPledge(true);
+            setImage(editItem.imageUrl);
+            setLocation(editItem.location);
+            navigation.setOptions({ title: 'Edit Food' });
+        }
+    }, [editItem, navigation]);
+
+    const handleImageSelection = () => {
+        Alert.alert(
+            'Add Photo',
+            'Choose a method to add a photo',
+            [
+                {
+                    text: 'Take Photo',
+                    onPress: takePhoto,
+                },
+                {
+                    text: 'Choose from Library',
+                    onPress: pickImage,
+                },
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+            ]
+        );
+    };
+
+    const takePhoto = async () => {
         try {
-            console.log('pickImage called');
-
-            // Request permission to access media library
-            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            console.log('Permission result:', permissionResult);
-
+            const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
             if (permissionResult.status !== 'granted') {
-                Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to upload photos!');
+                Alert.alert('Permission Required', 'We need camera permissions to take a photo!');
                 return;
             }
 
-            console.log('Launching image library...');
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: 'images', // Use string instead of enum for compatibility
+            const result = await ImagePicker.launchCameraAsync({
                 allowsEditing: true,
                 aspect: [4, 3],
                 quality: 0.5,
             });
 
-            console.log('Image picker result:', result);
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setImage(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error taking photo:', error);
+            Alert.alert('Error', 'Failed to take photo');
+        }
+    };
+
+    const pickImage = async () => {
+        try {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (permissionResult.status !== 'granted') {
+                Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to upload photos!');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: 'images',
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.5,
+            });
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
-                console.log('Image selected:', result.assets[0].uri);
                 setImage(result.assets[0].uri);
-            } else {
-                console.log('Image selection cancelled');
             }
         } catch (error) {
             console.error('Error in pickImage:', error);
@@ -58,6 +128,9 @@ const AddFoodScreen = ({ navigation }) => {
     };
 
     const uploadImage = async (uri) => {
+        // If image hasn't changed (still a URL), return it directly
+        if (uri.startsWith('http')) return uri;
+
         try {
             // Why XMLHttpRequest? Firebase Storage sometimes fails with fetch() on React Native
             // This is the recommended workaround for Expo/RN
@@ -75,7 +148,7 @@ const AddFoodScreen = ({ navigation }) => {
                 xhr.send(null);
             });
 
-            const filename = `food_images/${auth.currentUser.uid}/${Date.now()}.jpg`;
+            const filename = `food_images / ${auth.currentUser.uid}/${Date.now()}.jpg`;
             const storageRef = ref(storage, filename);
 
             await uploadBytes(storageRef, blob);
@@ -109,9 +182,29 @@ const AddFoodScreen = ({ navigation }) => {
     };
 
     const handlePost = async () => {
-        if (!title || !description || !image) {
-            Alert.alert('Error', 'Please fill in all fields and add an image');
+        if (!title || !description || !image || !price || !category) {
+            Alert.alert('Error', 'Please fill in all required fields (Title, Description, Price, Category, Image)');
             return;
+        }
+
+        // Validate price
+        const priceValue = parseFloat(price);
+        if (isNaN(priceValue) || priceValue < 0 || priceValue > 999.99) {
+            Alert.alert('Invalid Price', 'Please enter a valid price between €0.00 and €999.99');
+            return;
+        }
+
+        // Validate original price if provided
+        if (originalPrice) {
+            const originalPriceValue = parseFloat(originalPrice);
+            if (isNaN(originalPriceValue) || originalPriceValue < 0 || originalPriceValue > 999.99) {
+                Alert.alert('Invalid Original Price', 'Please enter a valid original price between €0.00 and €999.99');
+                return;
+            }
+            if (originalPriceValue <= priceValue) {
+                Alert.alert('Invalid Prices', 'Original price should be higher than the current price');
+                return;
+            }
         }
 
         if (!location) {
@@ -122,17 +215,26 @@ const AddFoodScreen = ({ navigation }) => {
             return;
         }
 
+        if (!safetyPledge) {
+            Alert.alert('Safety Pledge Required', 'Please confirm that the food is safe to eat and stored properly.');
+            return;
+        }
+
         setLoading(true);
         try {
             const imageUrl = await uploadImage(image);
 
-            await addDoc(collection(db, 'foods'), {
+            const foodData = {
                 title,
                 description,
-                expiry,
+                expiry: selectedExpiry, // Simple label like "Tomorrow", "2 Days"
+                price: parseFloat(price),
+                originalPrice: originalPrice ? parseFloat(originalPrice) : null,
+                currency: '€',
+                category,
+                storageCondition,
+                packageStatus,
                 imageUrl,
-                createdBy: auth.currentUser.uid,
-                creatorName: auth.currentUser.displayName || 'Anonymous',
                 location: {
                     lat: location.lat,
                     lng: location.lng,
@@ -140,28 +242,47 @@ const AddFoodScreen = ({ navigation }) => {
                     city: location.city || 'Munich',
                     district: location.district || ''
                 },
-                createdAt: serverTimestamp(),
-                status: 'available',
-                reservedBy: null,
-                reservedByUsername: null
-            });
+            };
 
-            Alert.alert('Success', 'Your food has been posted!', [
-                {
-                    text: 'OK',
-                    onPress: () => {
-                        setTitle('');
-                        setDescription('');
-                        setExpiry('');
-                        setImage(null);
-                        setLocation(null);
-                        navigation.navigate('HomeTab');
+            if (isEditing) {
+                await updateDoc(doc(db, 'foods', editItem.id), {
+                    ...foodData,
+                    updatedAt: serverTimestamp(),
+                });
+                Alert.alert('Success', 'Food updated successfully!', [
+                    { text: 'OK', onPress: () => navigation.goBack() }
+                ]);
+            } else {
+                await addDoc(collection(db, 'foods'), {
+                    ...foodData,
+                    createdBy: auth.currentUser.uid,
+                    creatorName: auth.currentUser.displayName || 'Anonymous',
+                    createdAt: serverTimestamp(),
+                    status: 'available',
+                    reservedBy: null,
+                    reservedByUsername: null
+                });
+
+                Alert.alert('Success', 'Your food has been posted!', [
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            setTitle('');
+                            setDescription('');
+                            setSelectedExpiry('Tomorrow');
+                            setPrice('');
+                            setOriginalPrice('');
+                            setCategory('');
+                            setImage(null);
+                            setLocation(null);
+                            navigation.navigate('HomeTab');
+                        }
                     }
-                }
-            ]);
+                ]);
+            }
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'Failed to post food. Please try again.');
+            Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'post'} food. Please try again.`);
         } finally {
             setLoading(false);
         }
@@ -170,7 +291,7 @@ const AddFoodScreen = ({ navigation }) => {
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView contentContainerStyle={styles.content}>
-                <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+                <TouchableOpacity style={styles.imagePicker} onPress={handleImageSelection}>
                     {image ? (
                         <Image source={{ uri: image }} style={styles.image} />
                     ) : (
@@ -201,7 +322,10 @@ const AddFoodScreen = ({ navigation }) => {
                     placeholder="e.g. Homemade Lasagna"
                     value={title}
                     onChangeText={setTitle}
+                    maxLength={20}
                 />
+                <Text style={styles.charCounter}>{title.length}/20</Text>
+
                 <Input
                     label="Description"
                     placeholder="Describe the food, quantity, etc."
@@ -210,16 +334,139 @@ const AddFoodScreen = ({ navigation }) => {
                     textAlignVertical="top"
                     value={description}
                     onChangeText={setDescription}
+                    maxLength={200}
+                />
+                <Text style={styles.charCounter}>{description.length}/200</Text>
+
+                <Text style={styles.label}>Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
+                    {CATEGORIES.map((cat) => (
+                        <TouchableOpacity
+                            key={cat}
+                            style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
+                            onPress={() => setCategory(cat)}
+                        >
+                            <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>
+                                {cat}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                <Input
+                    label="Price (€)"
+                    placeholder="5.00"
+                    keyboardType="decimal-pad"
+                    value={price}
+                    onChangeText={setPrice}
                 />
                 <Input
-                    label="Expiry Time"
-                    placeholder="e.g. 2 hours"
-                    value={expiry}
-                    onChangeText={setExpiry}
+                    label="Original Price (Optional)"
+                    placeholder="10.00"
+                    keyboardType="decimal-pad"
+                    value={originalPrice}
+                    onChangeText={setOriginalPrice}
                 />
 
+                {/* Platform Fee Breakdown */}
+                {price && parseFloat(price) > 0 && (
+                    <View style={styles.feeBreakdown}>
+                        <Text style={styles.feeTitle}>💰 Platform Fee (10%)</Text>
+                        <View style={styles.feeRow}>
+                            <Text style={styles.feeLabel}>Listed Price:</Text>
+                            <Text style={styles.feeValue}>€{parseFloat(price).toFixed(2)}</Text>
+                        </View>
+                        <View style={styles.feeRow}>
+                            <Text style={styles.feeLabel}>Platform Fee:</Text>
+                            <Text style={styles.feeValueRed}>-€{(parseFloat(price) * 0.10).toFixed(2)}</Text>
+                        </View>
+                        <View style={[styles.feeRow, styles.feeRowTotal]}>
+                            <Text style={styles.feeLabelBold}>You Receive:</Text>
+                            <Text style={styles.feeValueGreen}>€{(parseFloat(price) * 0.90).toFixed(2)}</Text>
+                        </View>
+                        <Text style={styles.feeNote}>Free items (€0.00) have no platform fee</Text>
+                    </View>
+                )}
+
+                <Text style={styles.label}>Expiry Time</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
+                    {EXPIRY_OPTIONS.map((option) => (
+                        <TouchableOpacity
+                            key={option.label}
+                            style={[styles.categoryChip, selectedExpiry === option.label && styles.categoryChipActive]}
+                            onPress={() => setSelectedExpiry(option.label)}
+                        >
+                            <Text style={[styles.categoryText, selectedExpiry === option.label && styles.categoryTextActive]}>
+                                {option.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                <Text style={styles.label}>Storage Condition</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
+                    {STORAGE_OPTIONS.map((option) => {
+                        const getStorageEmoji = () => {
+                            switch (option) {
+                                case 'Frozen': return '❄️';
+                                case 'Refrigerated': return '🧊';
+                                case 'Pantry': return '🌡️';
+                                default: return '📦';
+                            }
+                        };
+
+                        return (
+                            <TouchableOpacity
+                                key={option}
+                                style={[styles.categoryChip, storageCondition === option && styles.categoryChipActive]}
+                                onPress={() => setStorageCondition(option)}
+                            >
+                                <Text style={{ fontSize: 16, marginRight: 4 }}>{getStorageEmoji()}</Text>
+                                <Text style={[styles.categoryText, storageCondition === option && styles.categoryTextActive]}>
+                                    {option}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+
+                <Text style={styles.label}>Package Status</Text>
+                <View style={styles.row}>
+                    {PACKAGE_OPTIONS.map((option) => {
+                        const getPackageEmoji = () => option === 'Sealed' ? '📦' : '🔓';
+
+                        return (
+                            <TouchableOpacity
+                                key={option}
+                                style={[styles.radioOption, packageStatus === option && styles.radioOptionActive]}
+                                onPress={() => setPackageStatus(option)}
+                            >
+                                <Text style={{ fontSize: 18, marginRight: 8 }}>{getPackageEmoji()}</Text>
+                                <Text style={[styles.radioText, packageStatus === option && styles.radioTextActive]}>
+                                    {option}
+                                </Text>
+                                {packageStatus === option && <View style={styles.activeDot} />}
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+
+                <TouchableOpacity
+                    style={styles.pledgeContainer}
+                    onPress={() => setSafetyPledge(!safetyPledge)}
+                >
+                    {safetyPledge ? (
+                        <CheckSquare size={24} color={COLORS.primary} />
+                    ) : (
+                        <Square size={24} color={COLORS.textLight} />
+                    )}
+                    <Text style={styles.pledgeText}>
+                        I confirm that this food is safe to eat, not expired, and has been stored properly.
+                    </Text>
+                </TouchableOpacity>
+
                 <Button
-                    title="Post Food"
+                    title={isEditing ? "Update Food" : "Post Food"}
                     onPress={handlePost}
                     loading={loading}
                     style={styles.button}
@@ -286,6 +533,167 @@ const styles = StyleSheet.create({
     },
     button: {
         marginTop: SPACING.m,
+    },
+    row: {
+        flexDirection: 'row',
+        gap: SPACING.m,
+    },
+    halfInput: {
+        flex: 1,
+    },
+    label: {
+        fontSize: FONT_SIZE.m,
+        fontWeight: '600',
+        color: COLORS.text,
+        marginBottom: SPACING.s,
+    },
+    categoryContainer: {
+        flexDirection: 'row',
+        marginBottom: SPACING.m,
+    },
+    categoryChip: {
+        paddingHorizontal: SPACING.m,
+        paddingVertical: SPACING.s,
+        backgroundColor: COLORS.surface,
+        borderRadius: 20,
+        marginRight: SPACING.s,
+        borderWidth: 1,
+        borderColor: '#eee',
+    },
+    categoryChipActive: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    categoryText: {
+        fontSize: FONT_SIZE.s,
+        color: COLORS.text,
+    },
+    categoryTextActive: {
+        color: COLORS.white,
+        fontWeight: '600',
+    },
+    dateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        padding: SPACING.m,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        marginBottom: SPACING.m,
+        gap: SPACING.s,
+    },
+    dateText: {
+        fontSize: FONT_SIZE.m,
+        color: COLORS.text,
+    },
+    radioOption: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: SPACING.m,
+        backgroundColor: COLORS.surface,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#eee',
+        justifyContent: 'center',
+    },
+    radioOptionActive: {
+        borderColor: COLORS.primary,
+        backgroundColor: '#F0F9F4',
+    },
+    radioText: {
+        fontSize: FONT_SIZE.m,
+        color: COLORS.textLight,
+        fontWeight: '500',
+    },
+    radioTextActive: {
+        color: COLORS.primary,
+        fontWeight: '600',
+    },
+    activeDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: COLORS.primary,
+        marginLeft: 8,
+    },
+    pledgeContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        padding: SPACING.m,
+        backgroundColor: '#FFF8E1', // Light yellow warning bg
+        borderRadius: 12,
+        marginBottom: SPACING.m,
+        marginTop: SPACING.s,
+        gap: SPACING.s,
+    },
+    pledgeText: {
+        flex: 1,
+        fontSize: FONT_SIZE.s,
+        color: '#856404', // Dark yellow/brown text
+        lineHeight: 20,
+    },
+    charCounter: {
+        fontSize: FONT_SIZE.xs,
+        color: COLORS.textLight,
+        textAlign: 'right',
+        marginTop: -SPACING.s,
+        marginBottom: SPACING.s,
+    },
+    feeBreakdown: {
+        backgroundColor: '#FFF8E1',
+        padding: SPACING.m,
+        borderRadius: 12,
+        marginBottom: SPACING.m,
+        borderWidth: 1,
+        borderColor: '#FFE082',
+    },
+    feeTitle: {
+        fontSize: FONT_SIZE.m,
+        fontWeight: 'bold',
+        color: '#F57C00',
+        marginBottom: SPACING.s,
+    },
+    feeRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 4,
+    },
+    feeRowTotal: {
+        marginTop: SPACING.s,
+        paddingTop: SPACING.s,
+        borderTopWidth: 1,
+        borderTopColor: '#FFE082',
+    },
+    feeLabel: {
+        fontSize: FONT_SIZE.s,
+        color: COLORS.text,
+    },
+    feeLabelBold: {
+        fontSize: FONT_SIZE.m,
+        fontWeight: 'bold',
+        color: COLORS.text,
+    },
+    feeValue: {
+        fontSize: FONT_SIZE.s,
+        color: COLORS.text,
+    },
+    feeValueRed: {
+        fontSize: FONT_SIZE.s,
+        color: '#D32F2F',
+        fontWeight: '600',
+    },
+    feeValueGreen: {
+        fontSize: FONT_SIZE.m,
+        color: COLORS.primary,
+        fontWeight: 'bold',
+    },
+    feeNote: {
+        fontSize: FONT_SIZE.xs,
+        color: COLORS.textLight,
+        fontStyle: 'italic',
+        marginTop: SPACING.s,
     },
 });
 
